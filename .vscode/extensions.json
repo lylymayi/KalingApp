@@ -1,1 +1,9 @@
-{ "recommendations": ["expo.vscode-expo-tools"] }
+{
+  "recommendations": [
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "msjsdiag.vscode-react-native",
+    "expo.vscode-expo",
+    "dsznajder.es7-react-js-snippets"
+  ]
+}

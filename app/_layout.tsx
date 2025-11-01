@@ -1,24 +1,71 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
+import React, { useEffect } from "react";
+import { Stack, useRouter, useSegments } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import * as SplashScreen from "expo-splash-screen";
+import Constants from "expo-constants";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
+import { ClerkProvider, useAuth } from "@clerk/clerk-expo";
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+WebBrowser.maybeCompleteAuthSession();
 
-export const unstable_settings = {
-  anchor: '(tabs)',
+const publishableKey =
+  Constants.expoConfig?.extra?.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY;
+if (!publishableKey) throw new Error("Missing Clerk Publishable Key!");
+
+const linking = Linking.createURL("/");
+
+const tokenCache = {
+  async getToken(key: string) {
+    try {
+      return SecureStore.getItemAsync(key);
+    } catch {
+      return null;
+    }
+  },
+  async saveToken(key: string, value: string) {
+    try {
+      return SecureStore.setItemAsync(key, value);
+    } catch {
+      return;
+    }
+  },
 };
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+SplashScreen.preventAutoHideAsync();
+
+function InitialLayout() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    SplashScreen.hideAsync();
+
+    const inTabsGroup = segments[0] === "(tabs)";
+    if (isSignedIn && !inTabsGroup) router.replace("/(tabs)/home");
+    if (!isSignedIn && inTabsGroup) router.replace("/login");
+  }, [isLoaded, isSignedIn]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signup" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <ClerkProvider
+      publishableKey={publishableKey}
+      tokenCache={tokenCache}
+      redirectUrl={linking}
+    >
+      <InitialLayout />
+    </ClerkProvider>
   );
 }
